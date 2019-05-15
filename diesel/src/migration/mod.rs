@@ -37,7 +37,7 @@ impl Migration for Box<dyn Migration> {
     }
 }
 
-impl<'a> Migration for &'a dyn Migration {
+impl<'a, T: ?Sized + 'a + Migration> Migration for &'a T {
     fn version(&self) -> &str {
         (&**self).version()
     }
