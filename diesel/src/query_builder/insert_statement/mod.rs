@@ -2,7 +2,7 @@ mod column_list;
 mod insert_from_select;
 
 pub(crate) use self::column_list::ColumnList;
-pub(crate) use self::insert_from_select::InsertFromSelect;
+pub use self::insert_from_select::InsertFromSelect;
 
 use std::any::*;
 use std::marker::PhantomData;
