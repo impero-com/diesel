@@ -5,6 +5,8 @@ use query_builder::*;
 use query_source::{Column, QuerySource};
 use result::QueryResult;
 
+use crate::backend::SupportsMutating;
+
 /// Types which can be passed to
 /// [`update.set`](struct.UpdateStatement.html#method.set).
 ///
@@ -64,7 +66,7 @@ pub struct Assign<Col, Expr> {
 
 impl<T, U, DB> QueryFragment<DB> for Assign<T, U>
 where
-    DB: Backend,
+    DB: Backend + SupportsMutating,
     T: Column,
     U: QueryFragment<DB>,
 {

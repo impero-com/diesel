@@ -4,6 +4,8 @@ use insertable::*;
 use query_builder::*;
 use query_source::Table;
 
+use crate::backend::SupportsMutating;
+
 /// Represents `(Columns) SELECT FROM ...` for use in an `INSERT` statement
 #[derive(Debug, Clone, Copy)]
 pub struct InsertFromSelect<Select, Columns> {
@@ -45,7 +47,7 @@ where
 
 impl<DB, Select, Columns> QueryFragment<DB> for InsertFromSelect<Select, Columns>
 where
-    DB: Backend,
+    DB: Backend + SupportsMutating,
     Columns: ColumnList + Expression<SqlType = Select::SqlType>,
     Select: Query + QueryFragment<DB>,
 {

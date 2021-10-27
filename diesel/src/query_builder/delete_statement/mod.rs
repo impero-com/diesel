@@ -9,6 +9,8 @@ use query_dsl::RunQueryDsl;
 use query_source::Table;
 use result::QueryResult;
 
+use crate::backend::SupportsMutating;
+
 #[derive(Debug, Clone, Copy, QueryId)]
 #[must_use = "Queries are only executed when calling `load`, `get_result` or similar."]
 /// Represents a SQL `DELETE` statement.
@@ -160,7 +162,7 @@ where
 
 impl<T, U, Ret, DB> QueryFragment<DB> for DeleteStatement<T, U, Ret>
 where
-    DB: Backend,
+    DB: Backend + SupportsMutating,
     T: Table,
     T::FromClause: QueryFragment<DB>,
     U: QueryFragment<DB>,

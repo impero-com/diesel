@@ -1,6 +1,8 @@
 pub mod changeset;
 pub mod target;
 
+use crate::backend::SupportsMutating;
+
 pub use self::changeset::AsChangeset;
 pub use self::target::{IntoUpdateTarget, UpdateTarget};
 
@@ -195,7 +197,7 @@ where
 
 impl<T, U, V, Ret, DB> QueryFragment<DB> for UpdateStatement<T, U, V, Ret>
 where
-    DB: Backend,
+    DB: Backend + SupportsMutating,
     T: Table,
     T::FromClause: QueryFragment<DB>,
     U: QueryFragment<DB>,

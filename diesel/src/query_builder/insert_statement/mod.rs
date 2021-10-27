@@ -1,6 +1,8 @@
 mod column_list;
 mod insert_from_select;
 
+use crate::backend::SupportsMutating;
+
 pub(crate) use self::column_list::ColumnList;
 pub use self::insert_from_select::InsertFromSelect;
 
@@ -174,7 +176,7 @@ impl<T, U, C, Op, Ret> InsertStatement<T, InsertFromSelect<U, C>, Op, Ret> {
 
 impl<T, U, Op, Ret, DB> QueryFragment<DB> for InsertStatement<T, U, Op, Ret>
 where
-    DB: Backend,
+    DB: Backend + SupportsMutating,
     T: Table,
     T::FromClause: QueryFragment<DB>,
     U: QueryFragment<DB> + CanInsertInSingleQuery<DB>,
