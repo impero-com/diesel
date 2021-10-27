@@ -56,8 +56,63 @@ where
 pub trait SupportsReturningClause {}
 /// Does this backend support the bare `DEFAULT` keyword?
 pub trait SupportsDefaultKeyword {}
+/// Does this backend support MUTATING the database (insert, update, delete)?
+pub trait SupportsMutating {}
 /// Does this backend use the standard `SAVEPOINT` syntax?
 pub trait UsesAnsiSavepointSyntax {}
+
+/// ReadOnly variant of a given backend
+#[derive(Debug)]
+pub struct ReadOnly<T>(T);
+
+impl<T> TypeMetadata for ReadOnly<T>
+where
+    T: TypeMetadata,
+{
+    type TypeMetadata = T::TypeMetadata;
+    type MetadataLookup = T::MetadataLookup;
+}
+
+macro_rules! read_only_has_sql_type (
+    ($sql_type:ty) => {
+        impl<DB> HasSqlType<$sql_type> for ReadOnly<DB> where
+            DB: HasSqlType<$sql_type>
+        {
+            fn metadata(lookup: &Self::MetadataLookup) -> Self::TypeMetadata {
+                DB::metadata(lookup)
+            }
+        }
+    };
+    ($first_ty: ty $(,$types:ty)*) => {
+        read_only_has_sql_type!($first_ty);
+        read_only_has_sql_type!($($types),*);
+    }
+);
+
+read_only_has_sql_type!(
+    sql_types::SmallInt,
+    sql_types::Integer,
+    sql_types::BigInt,
+    sql_types::Float,
+    sql_types::Double,
+    sql_types::VarChar,
+    sql_types::Binary,
+    sql_types::Date,
+    sql_types::Time,
+    sql_types::Timestamp
+);
+
+impl<T> Backend for ReadOnly<T>
+where
+    T: Backend,
+    T::QueryBuilder: QueryBuilder<ReadOnly<T>>,
+    T::BindCollector: BindCollector<ReadOnly<T>>,
+{
+    type QueryBuilder = T::QueryBuilder;
+    type BindCollector = T::BindCollector;
+    type RawValue = T::RawValue;
+    type ByteOrder = T::ByteOrder;
+}
 
 #[cfg(feature = "with-deprecated")]
 #[deprecated(since = "1.1.0", note = "use `sql_types::TypeMetadata` instead")]
