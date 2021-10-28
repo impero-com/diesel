@@ -74,7 +74,7 @@ where
 }
 
 macro_rules! read_only_has_sql_type (
-    ($sql_type:ty) => {
+    ($($sql_type:ty),*) => {$(
         impl<DB> HasSqlType<$sql_type> for ReadOnly<DB> where
             DB: HasSqlType<$sql_type>
         {
@@ -82,11 +82,7 @@ macro_rules! read_only_has_sql_type (
                 DB::metadata(lookup)
             }
         }
-    };
-    ($first_ty: ty $(,$types:ty)*) => {
-        read_only_has_sql_type!($first_ty);
-        read_only_has_sql_type!($($types),*);
-    }
+    )*}
 );
 
 read_only_has_sql_type!(

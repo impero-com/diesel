@@ -217,16 +217,17 @@ impl<C> Connection for ReadOnly<C>
 where
     C: Connection,
     ReadOnly<C::Backend>: Backend,
+    C::TransactionManager: TransactionManager<ReadOnly<C>>
 {
     type Backend = ReadOnly<C::Backend>;
     type TransactionManager = C::TransactionManager;
 
     fn establish(database_url: &str) -> ConnectionResult<Self> {
-        todo!()
+        C::establish(database_url).map(Self)
     }
 
     fn execute(&self, query: &str) -> QueryResult<usize> {
-        todo!()
+        self.0.execute(query)
     }
 
     fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
@@ -236,6 +237,7 @@ where
         Self::Backend: HasSqlType<T::SqlType>,
         U: Queryable<T::SqlType, Self::Backend>,
     {
+        // self.0.query_by_index(source)
         todo!()
     }
 
@@ -244,6 +246,7 @@ where
         T: QueryFragment<Self::Backend> + QueryId,
         U: QueryableByName<Self::Backend>,
     {
+        // self.0.query_by_name(source)
         todo!()
     }
 
@@ -251,10 +254,11 @@ where
     where
         T: QueryFragment<Self::Backend> + QueryId,
     {
+        // self.0.execute_returning_count(source)
         todo!()
     }
 
     fn transaction_manager(&self) -> &Self::TransactionManager {
-        todo!()
+        self.0.transaction_manager()
     }
 }
