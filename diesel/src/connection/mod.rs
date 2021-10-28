@@ -5,13 +5,14 @@ mod transaction_manager;
 
 use std::fmt::Debug;
 
+use crate::backend::ReadOnly;
+#[cfg(feature = "postgres")]
+use crate::pg::PgConnection;
 use backend::Backend;
 use deserialize::{Queryable, QueryableByName};
 use query_builder::{AsQuery, QueryFragment, QueryId};
 use result::*;
 use sql_types::HasSqlType;
-#[cfg(feature = "postgres")]
-use crate::pg::PgConnection;
 
 #[doc(hidden)]
 pub use self::statement_cache::{MaybeCached, StatementCache, StatementCacheKey};
@@ -30,6 +31,20 @@ pub trait SimpleConnection {
     /// Return the underlying `PgConnection` if it is one.
     #[cfg(feature = "postgres")]
     fn as_pg_connection(&self) -> Option<&PgConnection>;
+}
+
+impl<C> SimpleConnection for ReadOnly<C>
+where
+    C: SimpleConnection,
+{
+    fn batch_execute(&self, query: &str) -> QueryResult<()> {
+        self.0.batch_execute(query)
+    }
+
+    #[cfg(feature = "postgres")]
+    fn as_pg_connection(&self) -> Option<&PgConnection> {
+        self.0.as_pg_connection()
+    }
 }
 
 /// A connection to a database
@@ -196,4 +211,50 @@ pub trait Connection: SimpleConnection + Sized + Send {
 
     #[doc(hidden)]
     fn transaction_manager(&self) -> &Self::TransactionManager;
+}
+
+impl<C> Connection for ReadOnly<C>
+where
+    C: Connection,
+    ReadOnly<C::Backend>: Backend,
+{
+    type Backend = ReadOnly<C::Backend>;
+    type TransactionManager = C::TransactionManager;
+
+    fn establish(database_url: &str) -> ConnectionResult<Self> {
+        todo!()
+    }
+
+    fn execute(&self, query: &str) -> QueryResult<usize> {
+        todo!()
+    }
+
+    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
+    where
+        T: AsQuery,
+        T::Query: QueryFragment<Self::Backend> + QueryId,
+        Self::Backend: HasSqlType<T::SqlType>,
+        U: Queryable<T::SqlType, Self::Backend>,
+    {
+        todo!()
+    }
+
+    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
+    where
+        T: QueryFragment<Self::Backend> + QueryId,
+        U: QueryableByName<Self::Backend>,
+    {
+        todo!()
+    }
+
+    fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
+    where
+        T: QueryFragment<Self::Backend> + QueryId,
+    {
+        todo!()
+    }
+
+    fn transaction_manager(&self) -> &Self::TransactionManager {
+        todo!()
+    }
 }

@@ -2,6 +2,32 @@ use backend::UsesAnsiSavepointSyntax;
 use connection::{Connection, SimpleConnection};
 use result::{DatabaseErrorKind, Error, QueryResult};
 
+impl<TM, C> TransactionManager<ReadOnly<C>> for ReadOnly<TM>
+where
+    TM: TransactionManager<C>,
+    C: Connection,
+    C::Backend: Backend,
+    C::TransactionManager: TransactionManager<ReadOnly<C>>,
+    ReadOnly<C>: Connection,
+{
+    fn begin_transaction(&self, conn: &ReadOnly<C>) -> QueryResult<()> {
+        //self.0.begin_transaction(conn)
+        todo!()
+    }
+
+    fn rollback_transaction(&self, conn: &ReadOnly<C>) -> QueryResult<()> {
+        todo!()
+    }
+
+    fn commit_transaction(&self, conn: &ReadOnly<C>) -> QueryResult<()> {
+        todo!()
+    }
+
+    fn get_transaction_depth(&self) -> u32 {
+        todo!()
+    }
+}
+
 /// Manages the internal transaction state for a connection.
 ///
 /// You will not need to interact with this trait, unless you are writing an
@@ -36,6 +62,8 @@ pub trait TransactionManager<Conn: Connection> {
 }
 
 use std::cell::Cell;
+
+use crate::backend::{Backend, ReadOnly};
 
 /// An implementation of `TransactionManager` which can be used for backends
 /// which use ANSI standard syntax for savepoints such as SQLite and PostgreSQL.

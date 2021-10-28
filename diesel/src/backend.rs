@@ -63,7 +63,7 @@ pub trait UsesAnsiSavepointSyntax {}
 
 /// ReadOnly variant of a given backend
 #[derive(Debug)]
-pub struct ReadOnly<T>(T);
+pub struct ReadOnly<T>(pub(crate) T);
 
 impl<T> TypeMetadata for ReadOnly<T>
 where
