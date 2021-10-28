@@ -5,9 +5,10 @@ mod transaction_manager;
 
 use std::fmt::Debug;
 
-use crate::backend::ReadOnly;
 #[cfg(feature = "postgres")]
 use crate::pg::PgConnection;
+use crate::{backend::ReadOnly, query_builder::AstPass};
+use crate::{deserialize::FromSqlRow, types::TypeMetadata};
 use backend::Backend;
 use deserialize::{Queryable, QueryableByName};
 use query_builder::{AsQuery, QueryFragment, QueryId};
@@ -213,17 +214,66 @@ pub trait Connection: SimpleConnection + Sized + Send {
     fn transaction_manager(&self) -> &Self::TransactionManager;
 }
 
+impl<SQLT, DB, T> Queryable<SQLT, ReadOnly<DB>> for ReadOnly<T>
+where
+    T: Queryable<SQLT, DB>,
+    DB: Backend,
+    ReadOnly<DB>: Backend,
+    T::Row: FromSqlRow<SQLT, ReadOnly<DB>>,
+{
+    type Row = T::Row;
+
+    fn build(row: Self::Row) -> Self {
+        ReadOnly(T::build(row))
+    }
+}
+
+#[derive(Debug)]
+/// Bridge to defer implementation of a ReadOnly query to the inner backend
+/// TODO docs
+pub struct QueryBridge<'a, T, DB: Backend> {
+    query: &'a T,
+    _db: std::marker::PhantomData<DB>,
+}
+
+impl<T, DB> QueryFragment<DB> for QueryBridge<'_, T, DB>
+where
+    T: QueryFragment<ReadOnly<DB>>,
+    DB: Backend,
+    ReadOnly<DB>: Backend,
+    for<'a> AstPass<'a, ReadOnly<DB>>: From<AstPass<'a, DB>>,
+{
+    fn walk_ast(&self, mut pass: crate::query_builder::AstPass<DB>) -> QueryResult<()> {
+        let read_only_pass: crate::query_builder::AstPass<ReadOnly<DB>> = pass.reborrow().into();
+        self.query.walk_ast(read_only_pass)
+    }
+}
+
+impl<'a, T, DB: Backend> QueryId for QueryBridge<'a, T, DB>
+where
+    T: QueryId,
+{
+    type QueryId = T::QueryId;
+    const HAS_STATIC_QUERY_ID: bool = T::HAS_STATIC_QUERY_ID;
+}
+
 impl<C> Connection for ReadOnly<C>
 where
     C: Connection,
-    ReadOnly<C::Backend>: Backend,
-    C::TransactionManager: TransactionManager<ReadOnly<C>>
+    ReadOnly<C::Backend>: Backend<
+        QueryBuilder = <C::Backend as Backend>::QueryBuilder,
+        BindCollector = <C::Backend as Backend>::BindCollector,
+    >,
+    ReadOnly<C::Backend>:
+        TypeMetadata<MetadataLookup = <C::Backend as TypeMetadata>::MetadataLookup>,
+    C::TransactionManager: TransactionManager<ReadOnly<C>> + TransactionManager<C>,
+    for<'a> AstPass<'a, C::Backend>: From<AstPass<'a, ReadOnly<C::Backend>>>,
 {
     type Backend = ReadOnly<C::Backend>;
     type TransactionManager = C::TransactionManager;
 
     fn establish(database_url: &str) -> ConnectionResult<Self> {
-        C::establish(database_url).map(Self)
+        C::establish(database_url).map(ReadOnly)
     }
 
     fn execute(&self, query: &str) -> QueryResult<usize> {
@@ -237,7 +287,7 @@ where
         Self::Backend: HasSqlType<T::SqlType>,
         U: Queryable<T::SqlType, Self::Backend>,
     {
-        // self.0.query_by_index(source)
+        //self.0.query_by_index(ReadOnly(source))
         todo!()
     }
 
@@ -246,7 +296,13 @@ where
         T: QueryFragment<Self::Backend> + QueryId,
         U: QueryableByName<Self::Backend>,
     {
-        // self.0.query_by_name(source)
+        /*
+        let bridge: QueryBridge<_, C::Backend> = QueryBridge {
+            query: source,
+            _db: std::marker::PhantomData,
+        };
+        self.0.query_by_name(&bridge)
+        */
         todo!()
     }
 
@@ -254,8 +310,11 @@ where
     where
         T: QueryFragment<Self::Backend> + QueryId,
     {
-        // self.0.execute_returning_count(source)
-        todo!()
+        let bridge: QueryBridge<_, C::Backend> = QueryBridge {
+            query: source,
+            _db: std::marker::PhantomData,
+        };
+        self.0.execute_returning_count(&bridge)
     }
 
     fn transaction_manager(&self) -> &Self::TransactionManager {

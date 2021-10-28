@@ -6,6 +6,8 @@ use result::QueryResult;
 use serialize::ToSql;
 use sql_types::HasSqlType;
 
+use crate::{backend::ReadOnly, types::TypeMetadata};
+
 #[allow(missing_debug_implementations)]
 /// The primary type used when walking a Diesel AST during query execution.
 ///
@@ -29,6 +31,18 @@ where
     DB::MetadataLookup: 'a,
 {
     internals: AstPassInternals<'a, DB>,
+}
+
+impl<'a, DB> From<AstPass<'a, DB>> for AstPass<'a, ReadOnly<DB>>
+where
+    DB: Backend + TypeMetadata,
+    ReadOnly<DB>: Backend<QueryBuilder = DB::QueryBuilder, BindCollector = DB::BindCollector>
+        + TypeMetadata<MetadataLookup = DB::MetadataLookup>,
+{
+    fn from(pass: AstPass<'a, DB>) -> Self {
+        let internals: AstPassInternals<ReadOnly<DB>> = pass.internals.into_other_backend();
+        AstPass { internals }
+    }
 }
 
 impl<'a, DB> AstPass<'a, DB>
@@ -246,4 +260,27 @@ where
     IsSafeToCachePrepared(&'a mut bool),
     DebugBinds(&'a mut fmt::DebugList<'a, 'a>),
     IsNoop(&'a mut bool),
+}
+
+impl<'a, DB: Backend + TypeMetadata> AstPassInternals<'a, DB> {
+    fn into_other_backend<
+        DB2: Backend<QueryBuilder = DB::QueryBuilder, BindCollector = DB::BindCollector>
+            + TypeMetadata<MetadataLookup = DB::MetadataLookup>,
+    >(
+        self,
+    ) -> AstPassInternals<'a, DB2> {
+        match self {
+            Self::ToSql(x) => AstPassInternals::ToSql(x),
+            Self::CollectBinds {
+                collector,
+                metadata_lookup,
+            } => AstPassInternals::CollectBinds {
+                collector,
+                metadata_lookup,
+            },
+            Self::IsSafeToCachePrepared(x) => AstPassInternals::IsSafeToCachePrepared(x),
+            Self::DebugBinds(x) => AstPassInternals::DebugBinds(x),
+            Self::IsNoop(x) => AstPassInternals::IsNoop(x),
+        }
+    }
 }
