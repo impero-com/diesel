@@ -69,32 +69,6 @@ impl Connection for PgConnection {
     }
 
     #[doc(hidden)]
-    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
-    where
-        T: AsQuery,
-        T::Query: QueryFragment<Pg> + QueryId,
-        Pg: HasSqlType<T::SqlType>,
-        U: Queryable<T::SqlType, Pg>,
-    {
-        let (query, params) = self.prepare_query(&source.as_query())?;
-        query
-            .execute(&self.raw_connection, &params)
-            .and_then(|r| Cursor::new(r).collect())
-    }
-
-    #[doc(hidden)]
-    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
-    where
-        T: QueryFragment<Pg> + QueryId,
-        U: QueryableByName<Pg>,
-    {
-        let (query, params) = self.prepare_query(source)?;
-        query
-            .execute(&self.raw_connection, &params)
-            .and_then(|r| NamedCursor::new(r).collect())
-    }
-
-    #[doc(hidden)]
     fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
     where
         T: QueryFragment<Pg> + QueryId,
@@ -108,6 +82,34 @@ impl Connection for PgConnection {
     #[doc(hidden)]
     fn transaction_manager(&self) -> &Self::TransactionManager {
         &self.transaction_manager
+    }
+}
+
+impl<T, U> QueryByIndex<T, U> for PgConnection
+where
+    T: AsQuery,
+    T::Query: QueryFragment<Pg> + QueryId,
+    Pg: HasSqlType<T::SqlType>,
+    U: Queryable<T::SqlType, Pg>,
+{
+    fn query_by_index(&self, source: T) -> QueryResult<Vec<U>> {
+        let (query, params) = self.prepare_query(&source.as_query())?;
+        query
+            .execute(&self.raw_connection, &params)
+            .and_then(|r| Cursor::new(r).collect())
+    }
+}
+
+impl<T, U> QueryByName<T, U> for PgConnection
+where
+    T: QueryFragment<Pg> + QueryId,
+    U: QueryableByName<Pg>,
+{
+    fn query_by_name(&self, source: &T) -> QueryResult<Vec<U>> {
+        let (query, params) = self.prepare_query(source)?;
+        query
+            .execute(&self.raw_connection, &params)
+            .and_then(|r| NamedCursor::new(r).collect())
     }
 }
 

@@ -9,6 +9,8 @@ use result::QueryResult;
 use serialize::ToSql;
 use sql_types::HasSqlType;
 
+use crate::connection::QueryByName;
+
 #[derive(Debug, Clone)]
 #[must_use = "Queries are only executed when calling `load`, `get_result` or similar."]
 /// The return value of `sql_query`.
@@ -99,9 +101,10 @@ impl<Conn, T> LoadQuery<Conn, T> for SqlQuery
 where
     Conn: Connection,
     T: QueryableByName<Conn::Backend>,
+    Conn: QueryByName<Self, T>,
 {
     fn internal_load(self, conn: &Conn) -> QueryResult<Vec<T>> {
-        conn.query_by_name(&self)
+        <Conn as QueryByName<Self, T>>::query_by_name(conn, &self)
     }
 }
 
@@ -157,9 +160,10 @@ where
     Conn: Connection,
     T: QueryableByName<Conn::Backend>,
     Self: QueryFragment<Conn::Backend> + QueryId,
+    Conn: QueryByName<Self, T>,
 {
     fn internal_load(self, conn: &Conn) -> QueryResult<Vec<T>> {
-        conn.query_by_name(&self)
+        <Conn as QueryByName<Self, T>>::query_by_name(conn, &self)
     }
 }
 

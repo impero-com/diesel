@@ -1,6 +1,6 @@
 use super::RunQueryDsl;
 use backend::Backend;
-use connection::Connection;
+use connection::{Connection, QueryByIndex};
 use deserialize::Queryable;
 use query_builder::{AsQuery, QueryFragment, QueryId};
 use result::QueryResult;
@@ -25,9 +25,10 @@ where
     T: AsQuery + RunQueryDsl<Conn>,
     T::Query: QueryFragment<Conn::Backend> + QueryId,
     U: Queryable<T::SqlType, Conn::Backend>,
+    Conn: QueryByIndex<T, U>,
 {
     fn internal_load(self, conn: &Conn) -> QueryResult<Vec<U>> {
-        conn.query_by_index(self)
+        <Conn as QueryByIndex<T, U>>::query_by_index(conn, self)
     }
 }
 

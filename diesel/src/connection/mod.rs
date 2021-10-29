@@ -5,19 +5,15 @@ mod transaction_manager;
 
 use std::fmt::Debug;
 
+use crate::backend::ReadOnly;
 #[cfg(feature = "postgres")]
 use crate::pg::PgConnection;
-use crate::{backend::ReadOnly, query_builder::AstPass};
-use crate::{
-    deserialize::{FromSqlRow, Result as DieselResult},
-    row::NamedRow,
-    types::TypeMetadata,
-};
+use crate::query_builder::{AsQuery, AstPass};
+use crate::{deserialize::FromSqlRow, types::TypeMetadata};
 use backend::Backend;
-use deserialize::{Queryable, QueryableByName};
-use query_builder::{AsQuery, QueryFragment, QueryId};
+use deserialize::Queryable;
+use query_builder::{QueryFragment, QueryId};
 use result::*;
-use sql_types::HasSqlType;
 
 #[doc(hidden)]
 pub use self::statement_cache::{MaybeCached, StatementCache, StatementCacheKey};
@@ -198,16 +194,18 @@ pub trait Connection: SimpleConnection + Sized + Send {
     #[doc(hidden)]
     fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
     where
-        T: AsQuery,
-        T::Query: QueryFragment<Self::Backend> + QueryId,
-        Self::Backend: HasSqlType<T::SqlType>,
-        U: Queryable<T::SqlType, Self::Backend>;
+        Self: QueryByIndex<T, U>,
+    {
+        <Self as QueryByIndex<T, U>>::query_by_index(self, source)
+    }
 
     #[doc(hidden)]
     fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
     where
-        T: QueryFragment<Self::Backend> + QueryId,
-        U: QueryableByName<Self::Backend>;
+        Self: QueryByName<T, U>,
+    {
+        <Self as QueryByName<T, U>>::query_by_name(self, source)
+    }
 
     #[doc(hidden)]
     fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
@@ -253,9 +251,8 @@ where
     const HAS_STATIC_QUERY_ID: bool = T::HAS_STATIC_QUERY_ID;
 }
 
-impl<C> Connection for ReadOnly<C>
+impl<C: Connection> Connection for ReadOnly<C>
 where
-    C: Connection,
     ReadOnly<C::Backend>: Backend<
         QueryBuilder = <C::Backend as Backend>::QueryBuilder,
         BindCollector = <C::Backend as Backend>::BindCollector,
@@ -276,24 +273,6 @@ where
         self.0.execute(query)
     }
 
-    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
-    where
-        T: AsQuery,
-        T::Query: QueryFragment<Self::Backend> + QueryId,
-        Self::Backend: HasSqlType<T::SqlType>,
-        U: Queryable<T::SqlType, Self::Backend>,
-    {
-        todo!()
-    }
-
-    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
-    where
-        T: QueryFragment<Self::Backend> + QueryId,
-        U: QueryableByName<Self::Backend>,
-    {
-        todo!()
-    }
-
     fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
     where
         T: QueryFragment<Self::Backend> + QueryId,
@@ -303,5 +282,41 @@ where
 
     fn transaction_manager(&self) -> &Self::TransactionManager {
         self.0.transaction_manager()
+    }
+}
+
+/// TODO docs
+pub trait QueryByIndex<T, U> {
+    /// TODO docs
+    fn query_by_index(&self, source: T) -> QueryResult<Vec<U>>;
+}
+
+impl<T, U, C: Connection> QueryByIndex<T, U> for ReadOnly<C>
+where
+    ReadOnly<C::Backend>: Backend,
+    T: AsQuery,
+    T::Query: QueryFragment<ReadOnly<C::Backend>>,
+    C: QueryByIndex<T, U>,
+{
+    fn query_by_index(&self, source: T) -> QueryResult<Vec<U>> {
+        <C as QueryByIndex<T, U>>::query_by_index(&self.0, source)
+    }
+}
+
+/// TODO docs
+pub trait QueryByName<T, U> {
+    /// TODO docs
+    fn query_by_name(&self, source: &T) -> QueryResult<Vec<U>>;
+}
+
+impl<T, U, C: Connection> QueryByName<T, U> for ReadOnly<C>
+where
+    ReadOnly<C::Backend>: Backend,
+    T: AsQuery,
+    T::Query: QueryFragment<ReadOnly<C::Backend>>,
+    C: QueryByName<T, U>,
+{
+    fn query_by_name(&self, source: &T) -> QueryResult<Vec<U>> {
+        <C as QueryByName<T, U>>::query_by_name(&self.0, source)
     }
 }
