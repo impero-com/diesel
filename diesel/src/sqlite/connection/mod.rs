@@ -75,32 +75,6 @@ impl Connection for SqliteConnection {
     }
 
     #[doc(hidden)]
-    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
-    where
-        T: AsQuery,
-        T::Query: QueryFragment<Self::Backend> + QueryId,
-        Self::Backend: HasSqlType<T::SqlType>,
-        U: Queryable<T::SqlType, Self::Backend>,
-    {
-        let mut statement = self.prepare_query(&source.as_query())?;
-        let statement_use = StatementUse::new(&mut statement);
-        let iter = StatementIterator::new(statement_use);
-        iter.collect()
-    }
-
-    #[doc(hidden)]
-    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
-    where
-        T: QueryFragment<Self::Backend> + QueryId,
-        U: QueryableByName<Self::Backend>,
-    {
-        let mut statement = self.prepare_query(source)?;
-        let statement_use = StatementUse::new(&mut statement);
-        let iter = NamedStatementIterator::new(statement_use)?;
-        iter.collect()
-    }
-
-    #[doc(hidden)]
     fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
     where
         T: QueryFragment<Self::Backend> + QueryId,
@@ -114,6 +88,34 @@ impl Connection for SqliteConnection {
     #[doc(hidden)]
     fn transaction_manager(&self) -> &Self::TransactionManager {
         &self.transaction_manager
+    }
+}
+
+impl<T, U> QueryByIndex<T, U> for SqliteConnection
+where
+    T: AsQuery,
+    T::Query: QueryFragment<Sqlite> + QueryId,
+    Sqlite: HasSqlType<T::SqlType>,
+    U: Queryable<T::SqlType, Sqlite>,
+{
+    fn query_by_index(&self, source: T) -> QueryResult<Vec<U>> {
+        let mut statement = self.prepare_query(&source.as_query())?;
+        let statement_use = StatementUse::new(&mut statement);
+        let iter = StatementIterator::new(statement_use);
+        iter.collect()
+    }
+}
+
+impl<T, U> QueryByName<T, U> for SqliteConnection
+where
+    T: QueryFragment<Sqlite> + QueryId,
+    U: QueryableByName<Sqlite>,
+{
+    fn query_by_name(&self, source: &T) -> QueryResult<Vec<U>> {
+        let mut statement = self.prepare_query(source)?;
+        let statement_use = StatementUse::new(&mut statement);
+        let iter = NamedStatementIterator::new(statement_use)?;
+        iter.collect()
     }
 }
 

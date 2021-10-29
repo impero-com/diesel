@@ -51,3 +51,4 @@ impl TypeMetadata for Sqlite {
 }
 
 impl UsesAnsiSavepointSyntax for Sqlite {}
+impl SupportsMutating for Sqlite {}
