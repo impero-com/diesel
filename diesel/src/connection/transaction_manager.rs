@@ -5,26 +5,25 @@ use result::{DatabaseErrorKind, Error, QueryResult};
 impl<TM, C> TransactionManager<ReadOnly<C>> for ReadOnly<TM>
 where
     TM: TransactionManager<C>,
+    ReadOnly<C>: Connection,
     C: Connection,
     C::Backend: Backend,
     C::TransactionManager: TransactionManager<ReadOnly<C>>,
-    ReadOnly<C>: Connection,
 {
     fn begin_transaction(&self, conn: &ReadOnly<C>) -> QueryResult<()> {
-        //self.0.begin_transaction(conn)
-        todo!()
+        self.0.begin_transaction(&conn.0)
     }
 
     fn rollback_transaction(&self, conn: &ReadOnly<C>) -> QueryResult<()> {
-        todo!()
+        self.0.rollback_transaction(&conn.0)
     }
 
     fn commit_transaction(&self, conn: &ReadOnly<C>) -> QueryResult<()> {
-        todo!()
+        self.0.commit_transaction(&conn.0)
     }
 
     fn get_transaction_depth(&self) -> u32 {
-        todo!()
+        self.0.get_transaction_depth()
     }
 }
 
