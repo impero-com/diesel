@@ -6,6 +6,8 @@ use result::QueryResult;
 use serialize::{IsNull, Output, ToSql};
 use sql_types::{HasSqlType, TypeMetadata};
 
+use crate::backend::ReadOnly;
+
 /// A type which manages serializing bind parameters during query construction.
 ///
 /// The only reason you would ever need to interact with this trait is if you
@@ -23,6 +25,24 @@ pub trait BindCollector<DB: Backend> {
     where
         DB: HasSqlType<T>,
         U: ToSql<T, DB>;
+}
+
+impl<DB: Backend, BC: BindCollector<DB>> BindCollector<ReadOnly<DB>> for ReadOnly<BC>
+where
+    ReadOnly<DB>: Backend + TypeMetadata,
+{
+    fn push_bound_value<T, U>(
+        &mut self,
+        bind: &U,
+        metadata_lookup: &<ReadOnly<DB> as TypeMetadata>::MetadataLookup,
+    ) -> QueryResult<()>
+    where
+        ReadOnly<DB>: HasSqlType<T>,
+        U: ToSql<T, ReadOnly<DB>>,
+    {
+        //self.0.push_bound_value
+        todo!()
+    }
 }
 
 #[derive(Debug)]

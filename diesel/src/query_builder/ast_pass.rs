@@ -36,8 +36,10 @@ where
 impl<'a, DB> From<AstPass<'a, DB>> for AstPass<'a, ReadOnly<DB>>
 where
     DB: Backend + TypeMetadata,
-    ReadOnly<DB>: Backend<QueryBuilder = DB::QueryBuilder, BindCollector = DB::BindCollector>
-        + TypeMetadata<MetadataLookup = DB::MetadataLookup>,
+    ReadOnly<DB>: Backend<
+            QueryBuilder = ReadOnly<DB::QueryBuilder>,
+            BindCollector = ReadOnly<DB::BindCollector>,
+        > + TypeMetadata<MetadataLookup = DB::MetadataLookup>,
 {
     fn from(pass: AstPass<'a, DB>) -> Self {
         let internals: AstPassInternals<ReadOnly<DB>> = pass.internals.into_other_backend();
@@ -264,19 +266,21 @@ where
 
 impl<'a, DB: Backend + TypeMetadata> AstPassInternals<'a, DB> {
     fn into_other_backend<
-        DB2: Backend<QueryBuilder = DB::QueryBuilder, BindCollector = DB::BindCollector>
-            + TypeMetadata<MetadataLookup = DB::MetadataLookup>,
+        DB2: Backend<
+                QueryBuilder = ReadOnly<DB::QueryBuilder>,
+                BindCollector = ReadOnly<DB::BindCollector>,
+            > + TypeMetadata<MetadataLookup = DB::MetadataLookup>,
     >(
         self,
     ) -> AstPassInternals<'a, DB2> {
         match self {
-            Self::ToSql(x) => AstPassInternals::ToSql(x),
+            Self::ToSql(x) => AstPassInternals::ToSql(&mut ReadOnly(x)),
             Self::CollectBinds {
                 collector,
                 metadata_lookup,
             } => AstPassInternals::CollectBinds {
-                collector,
-                metadata_lookup,
+                collector: &mut collector.0,
+                metadata_lookup: metadata_lookup,
             },
             Self::IsSafeToCachePrepared(x) => AstPassInternals::IsSafeToCachePrepared(x),
             Self::DebugBinds(x) => AstPassInternals::DebugBinds(x),

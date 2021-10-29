@@ -31,13 +31,16 @@ mod sql_query;
 mod update_statement;
 mod where_clause;
 
+use crate::backend::ReadOnly;
+
 pub use self::ast_pass::AstPass;
 pub use self::bind_collector::BindCollector;
 pub use self::debug_query::DebugQuery;
 pub use self::delete_statement::{BoxedDeleteStatement, DeleteStatement};
 #[doc(inline)]
 pub use self::insert_statement::{
-    IncompleteInsertStatement, InsertStatement, UndecoratedInsertRecord, ValuesClause, InsertFromSelect
+    IncompleteInsertStatement, InsertFromSelect, InsertStatement, UndecoratedInsertRecord,
+    ValuesClause,
 };
 pub use self::query_id::QueryId;
 #[doc(hidden)]
@@ -85,6 +88,28 @@ pub trait QueryBuilder<DB: Backend> {
 
     /// Returns the constructed SQL query.
     fn finish(self) -> String;
+}
+
+impl<DB: Backend, QB> QueryBuilder<ReadOnly<DB>> for ReadOnly<QB>
+where
+    ReadOnly<DB>: Backend,
+    QB: QueryBuilder<DB>,
+{
+    fn push_sql(&mut self, sql: &str) {
+        todo!()
+    }
+
+    fn push_identifier(&mut self, identifier: &str) -> QueryResult<()> {
+        todo!()
+    }
+
+    fn push_bind_param(&mut self) {
+        todo!()
+    }
+
+    fn finish(self) -> String {
+        todo!()
+    }
 }
 
 /// A complete SQL query with a return type.
