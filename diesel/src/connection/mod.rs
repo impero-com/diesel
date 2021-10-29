@@ -8,7 +8,11 @@ use std::fmt::Debug;
 #[cfg(feature = "postgres")]
 use crate::pg::PgConnection;
 use crate::{backend::ReadOnly, query_builder::AstPass};
-use crate::{deserialize::FromSqlRow, types::TypeMetadata};
+use crate::{
+    deserialize::{FromSqlRow, Result as DieselResult},
+    row::NamedRow,
+    types::TypeMetadata,
+};
 use backend::Backend;
 use deserialize::{Queryable, QueryableByName};
 use query_builder::{AsQuery, QueryFragment, QueryId};
@@ -228,15 +232,7 @@ where
     }
 }
 
-#[derive(Debug)]
-/// Bridge to defer implementation of a ReadOnly query to the inner backend
-/// TODO docs
-pub struct QueryBridge<'a, T, DB: Backend> {
-    query: &'a T,
-    _db: std::marker::PhantomData<DB>,
-}
-
-impl<T, DB> QueryFragment<DB> for QueryBridge<'_, T, DB>
+impl<T, DB> QueryFragment<DB> for ReadOnly<&T>
 where
     T: QueryFragment<ReadOnly<DB>>,
     DB: Backend,
@@ -245,11 +241,11 @@ where
 {
     fn walk_ast(&self, mut pass: crate::query_builder::AstPass<DB>) -> QueryResult<()> {
         let read_only_pass: crate::query_builder::AstPass<ReadOnly<DB>> = pass.reborrow().into();
-        self.query.walk_ast(read_only_pass)
+        self.0.walk_ast(read_only_pass)
     }
 }
 
-impl<'a, T, DB: Backend> QueryId for QueryBridge<'a, T, DB>
+impl<'a, T> QueryId for ReadOnly<&T>
 where
     T: QueryId,
 {
@@ -287,7 +283,6 @@ where
         Self::Backend: HasSqlType<T::SqlType>,
         U: Queryable<T::SqlType, Self::Backend>,
     {
-        //self.0.query_by_index(ReadOnly(source))
         todo!()
     }
 
@@ -296,13 +291,6 @@ where
         T: QueryFragment<Self::Backend> + QueryId,
         U: QueryableByName<Self::Backend>,
     {
-        /*
-        let bridge: QueryBridge<_, C::Backend> = QueryBridge {
-            query: source,
-            _db: std::marker::PhantomData,
-        };
-        self.0.query_by_name(&bridge)
-        */
         todo!()
     }
 
@@ -310,11 +298,7 @@ where
     where
         T: QueryFragment<Self::Backend> + QueryId,
     {
-        let bridge: QueryBridge<_, C::Backend> = QueryBridge {
-            query: source,
-            _db: std::marker::PhantomData,
-        };
-        self.0.execute_returning_count(&bridge)
+        self.0.execute_returning_count(&ReadOnly(source))
     }
 
     fn transaction_manager(&self) -> &Self::TransactionManager {
