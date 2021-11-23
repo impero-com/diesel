@@ -5,13 +5,13 @@ mod transaction_manager;
 
 use std::fmt::Debug;
 
+#[cfg(feature = "postgres")]
+use crate::pg::PgConnection;
 use backend::Backend;
 use deserialize::{Queryable, QueryableByName};
 use query_builder::{AsQuery, QueryFragment, QueryId};
 use result::*;
 use sql_types::HasSqlType;
-#[cfg(feature = "postgres")]
-use crate::pg::PgConnection;
 
 #[doc(hidden)]
 pub use self::statement_cache::{MaybeCached, StatementCache, StatementCacheKey};
@@ -29,7 +29,9 @@ pub trait SimpleConnection {
 
     /// Return the underlying `PgConnection` if it is one.
     #[cfg(feature = "postgres")]
-    fn as_pg_connection(&self) -> Option<&PgConnection>;
+    fn as_pg_connection(&self) -> Option<&PgConnection> {
+        None
+    }
 }
 
 /// A connection to a database
