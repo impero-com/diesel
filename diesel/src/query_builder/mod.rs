@@ -48,10 +48,15 @@ pub use self::sql_query::SqlQuery;
 pub use self::update_statement::IncompleteUpdateStatement;
 #[doc(inline)]
 pub use self::update_statement::{
-    AsChangeset, BoxedUpdateStatement, IntoUpdateTarget, UpdateStatement, UpdateTarget,
+    AsChangeset, Bindable, BoxedUpdateStatement, IntoUpdateTarget, UpdateStatement, UpdateTarget,
 };
 
+#[cfg(feature = "postgres")]
+#[doc(inline)]
+pub use self::update_statement::{AsBulkChangeset, BulkChangesetColumn, BulkUpdate};
+
 pub(crate) use self::insert_statement::ColumnList;
+pub(crate) use self::update_statement::BulkChangesetAssignment;
 
 use std::error::Error;
 
