@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use std::error::Error;
 
 use associations::BelongsTo;
@@ -16,6 +18,9 @@ use util::TupleAppend;
 
 #[cfg(feature = "mysql")]
 use sql_types::IsSigned;
+
+#[derive(Copy, Clone, Debug)]
+pub struct Tuples;
 
 macro_rules! tuple_impls {
     ($(
@@ -117,6 +122,42 @@ macro_rules! tuple_impls {
                 }
             }
 
+            impl<$($T,)+ Tab, __DB> BulkChangesetAssignment<__DB> for ($($T,)+)
+            where
+                __DB: Backend,
+                $($T: BulkChangesetAssignment<__DB, Table = Tab>,)+
+            {
+                type Table = Tab;
+
+                fn walk_ast(&self, mut out: AstPass<__DB>) -> QueryResult<()> {
+                    $(
+                        if $idx != 0 {
+                            out.push_sql("AND ");
+                        }
+                        self.$idx.walk_ast(out.reborrow())?;
+                    )+
+                    Ok(())
+                }
+            }
+
+            impl<$($T,)+ $($ST,)+ Tab, __DB> Bindable<($($ST,)+), __DB, Tuples> for ($($T,)+)
+            where
+                __DB: Backend,
+                $($T: Bindable<$ST, __DB, (), Table = Tab>,)+
+            {
+                type Table = Tab;
+
+                fn bind( ($($ST,)+) : &($($ST,)+), mut out: AstPass<__DB>) -> QueryResult<()> {
+                    $(
+                        if $idx != 0 {
+                            out.push_sql(", ");
+                        }
+                        $T::bind($ST, out.reborrow())?;
+                    )+
+                    Ok(())
+                }
+            }
+
             impl<$($T: QueryId),+> QueryId for ($($T,)+) {
                 type QueryId = ($($T::QueryId,)+);
 
@@ -209,6 +250,19 @@ macro_rules! tuple_impls {
 
                 fn as_changeset(self) -> Self::Changeset {
                     ($(self.$idx.as_changeset(),)+)
+                }
+            }
+
+            impl<$($T,)+> AsBulkChangeset for ($($T,)+)
+            where
+                $($T: AsBulkChangeset,)+
+            {
+                type ColumnSet = ($($T::ColumnSet,)+);
+                type ColumnInfo = ($($T::ColumnInfo,)+);
+                type BulkChangeset = ($($T::BulkChangeset,)+);
+
+                fn as_bulk_changeset(self) -> Self::BulkChangeset {
+                    ($(self.$idx.as_bulk_changeset(),)+)
                 }
             }
 

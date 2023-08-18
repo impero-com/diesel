@@ -1,8 +1,23 @@
+pub mod bindable;
+#[cfg(feature = "postgres")]
+pub mod bulk_changeset;
+#[cfg(feature = "postgres")]
+pub mod bulk_update;
 pub mod changeset;
+mod changeset_assignment;
 pub mod target;
 
+pub(crate) use self::changeset_assignment::BulkChangesetAssignment;
+
+pub use self::bindable::Bindable;
 pub use self::changeset::AsChangeset;
 pub use self::target::{IntoUpdateTarget, UpdateTarget};
+
+#[cfg(feature = "postgres")]
+pub use self::{
+    bulk_changeset::{AsBulkChangeset, BulkChangesetColumn},
+    bulk_update::BulkUpdate,
+};
 
 use backend::Backend;
 use dsl::{Filter, IntoBoxed};
