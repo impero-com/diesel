@@ -119,6 +119,30 @@ pub trait Connection: SimpleConnection + Sized + Send {
         }
     }
 
+    /// Transient function to ease the transition to diesel 2
+    fn transaction_mut<T, E, F>(&mut self, f: F) -> Result<T, E>
+    where
+        F: FnOnce(&mut Self) -> Result<T, E>,
+        E: From<Error>,
+    {
+        {
+            let transaction_manager = self.transaction_manager();
+            transaction_manager.begin_transaction(self)?;
+        }
+        match f(self) {
+            Ok(value) => {
+                let transaction_manager = self.transaction_manager();
+                transaction_manager.commit_transaction(self)?;
+                Ok(value)
+            }
+            Err(e) => {
+                let transaction_manager = self.transaction_manager();
+                transaction_manager.rollback_transaction(self)?;
+                Err(e)
+            }
+        }
+    }
+
     /// Creates a transaction that will never be committed. This is useful for
     /// tests. Panics if called while inside of a transaction.
     fn begin_test_transaction(&self) -> QueryResult<()> {
