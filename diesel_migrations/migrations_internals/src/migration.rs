@@ -122,11 +122,11 @@ impl Migration for SqlFileMigration {
         &self.1
     }
 
-    fn run(&self, conn: &dyn SimpleConnection) -> Result<(), RunMigrationsError> {
+    fn run(&self, conn: &mut dyn SimpleConnection) -> Result<(), RunMigrationsError> {
         run_sql_from_file(conn, &self.0.join("up.sql"))
     }
 
-    fn revert(&self, conn: &dyn SimpleConnection) -> Result<(), RunMigrationsError> {
+    fn revert(&self, conn: &mut dyn SimpleConnection) -> Result<(), RunMigrationsError> {
         run_sql_from_file(conn, &self.0.join("down.sql"))
     }
 }

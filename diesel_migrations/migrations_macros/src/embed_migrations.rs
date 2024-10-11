@@ -54,23 +54,23 @@ pub fn derive_embed_migrations(input: &syn::DeriveInput) -> proc_macro2::TokenSt
                 self.version
             }
 
-            fn run(&self, conn: &SimpleConnection) -> Result<(), RunMigrationsError> {
+            fn run(&self, conn: &mut SimpleConnection) -> Result<(), RunMigrationsError> {
                 conn.batch_execute(self.up_sql).map_err(Into::into)
             }
 
-            fn revert(&self, conn: &SimpleConnection) -> Result<(), RunMigrationsError> {
+            fn revert(&self, conn: &mut SimpleConnection) -> Result<(), RunMigrationsError> {
                 conn.batch_execute(self.down_sql).map_err(Into::into)
             }
         }
     );
 
     let run_fns = quote!(
-        pub fn run<C: MigrationConnection>(conn: &C) -> Result<(), RunMigrationsError> {
+        pub fn run<C: MigrationConnection>(conn: &mut C) -> Result<(), RunMigrationsError> {
             run_with_output(conn, &mut io::sink())
         }
 
         pub fn run_with_output<C: MigrationConnection>(
-            conn: &C,
+            conn: &mut C,
             out: &mut io::Write,
         ) -> Result<(), RunMigrationsError> {
             run_migrations(conn, ALL_MIGRATIONS.iter().map(|v| &**v), out)
@@ -88,7 +88,7 @@ pub fn derive_embed_migrations(input: &syn::DeriveInput) -> proc_macro2::TokenSt
         }
 
         pub fn revert_migration_with_version<Conn: Connection>(
-            conn: &Conn,
+            conn: &mut Conn,
             ver: &str,
             out: &mut io::Write,
         ) -> Result<(), RunMigrationsError> {
@@ -98,7 +98,7 @@ pub fn derive_embed_migrations(input: &syn::DeriveInput) -> proc_macro2::TokenSt
         }
 
         pub fn revert_latest_embedded_migration<Conn>(
-            conn: &Conn,
+            conn: &mut Conn,
             out: &mut io::Write,
         ) -> Result<String, RunMigrationsError>
         where

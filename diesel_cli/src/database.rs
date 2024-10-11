@@ -111,11 +111,11 @@ macro_rules! call_with_conn {
     ) => {
         match ::database::InferConnection::establish(&$database_url).unwrap() {
             #[cfg(feature="postgres")]
-            ::database::InferConnection::Pg(ref conn) => $($func)::+ (conn, $($args),*),
+            ::database::InferConnection::Pg(ref mut conn) => $($func)::+ (conn, $($args),*),
             #[cfg(feature="sqlite")]
-            ::database::InferConnection::Sqlite(ref conn) => $($func)::+ (conn, $($args),*),
+            ::database::InferConnection::Sqlite(ref mut conn) => $($func)::+ (conn, $($args),*),
             #[cfg(feature="mysql")]
-            ::database::InferConnection::Mysql(ref conn) => $($func)::+ (conn, $($args),*),
+            ::database::InferConnection::Mysql(ref mut conn) => $($func)::+ (conn, $($args),*),
         }
     };
 }

@@ -126,7 +126,7 @@ pub static TIMESTAMP_FORMAT: &str = "%Y-%m-%d-%H%M%S";
 ///
 /// See the [module level documentation](index.html) for information on how migrations should be
 /// structured, and where Diesel will look for them by default.
-pub fn run_pending_migrations<Conn>(conn: &Conn) -> Result<(), RunMigrationsError>
+pub fn run_pending_migrations<Conn>(conn: &mut Conn) -> Result<(), RunMigrationsError>
 where
     Conn: MigrationConnection,
 {
@@ -136,7 +136,7 @@ where
 
 #[doc(hidden)]
 pub fn run_pending_migrations_in_directory<Conn>(
-    conn: &Conn,
+    conn: &mut Conn,
     migrations_dir: &Path,
     output: &mut dyn Write,
 ) -> Result<(), RunMigrationsError>
@@ -194,7 +194,7 @@ where
 ///
 /// See the [module level documentation](index.html) for information on how migrations should be
 /// structured, and where Diesel will look for them by default.
-pub fn revert_latest_migration<Conn>(conn: &Conn) -> Result<String, RunMigrationsError>
+pub fn revert_latest_migration<Conn>(conn: &mut Conn) -> Result<String, RunMigrationsError>
 where
     Conn: MigrationConnection,
 {
@@ -203,7 +203,7 @@ where
 }
 
 pub fn revert_latest_migration_in_directory<Conn>(
-    conn: &Conn,
+    conn: &mut Conn,
     path: &Path,
 ) -> Result<String, RunMigrationsError>
 where
@@ -219,7 +219,7 @@ where
 
 #[doc(hidden)]
 pub fn revert_migration_with_version<Conn: Connection>(
-    conn: &Conn,
+    conn: &mut Conn,
     migrations_dir: &Path,
     ver: &str,
     output: &mut dyn Write,
@@ -231,7 +231,7 @@ pub fn revert_migration_with_version<Conn: Connection>(
 
 #[doc(hidden)]
 pub fn run_migration_with_version<Conn>(
-    conn: &Conn,
+    conn: &mut Conn,
     migrations_dir: &Path,
     ver: &str,
     output: &mut dyn Write,
@@ -297,7 +297,7 @@ fn migrations_in_directory(path: &Path) -> Result<Vec<Box<dyn Migration>>, Migra
 /// Run all pending migrations in the given list. Apps should likely be calling
 /// `run_pending_migrations` or `run_pending_migrations_in_directory` instead.
 pub fn run_migrations<Conn, List>(
-    conn: &Conn,
+    conn: &mut Conn,
     migrations: List,
     output: &mut dyn Write,
 ) -> Result<(), RunMigrationsError>
@@ -321,14 +321,14 @@ where
 }
 
 fn run_migration<Conn>(
-    conn: &Conn,
+    conn: &mut Conn,
     migration: &dyn Migration,
     output: &mut dyn Write,
 ) -> Result<(), RunMigrationsError>
 where
     Conn: MigrationConnection,
 {
-    conn.transaction(|| {
+    conn.transaction_mut(|conn| {
         if migration.version() != "00000000000000" {
             writeln!(output, "Running migration {}", name(&migration))?;
         }
@@ -346,11 +346,11 @@ where
 }
 
 pub fn revert_migration<Conn: Connection>(
-    conn: &Conn,
+    conn: &mut Conn,
     migration: &dyn Migration,
     output: &mut dyn Write,
 ) -> Result<(), RunMigrationsError> {
-    conn.transaction(|| {
+    conn.transaction_mut(|conn| {
         writeln!(output, "Rolling back migration {}", name(&migration))?;
         if let Err(e) = migration.revert(conn) {
             writeln!(

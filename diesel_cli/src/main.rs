@@ -291,11 +291,11 @@ fn search_for_cargo_toml_directory(path: &Path) -> DatabaseResult<PathBuf> {
 
 /// Reverts the most recent migration, and then runs it again, all in a
 /// transaction. If either part fails, the transaction is not committed.
-fn redo_latest_migration<Conn>(conn: &Conn, migrations_dir: &Path)
+fn redo_latest_migration<Conn>(conn: &mut Conn, migrations_dir: &Path)
 where
     Conn: MigrationConnection + Any,
 {
-    let migration_inner = || {
+    let migration_inner = |conn: &mut Conn| {
         let reverted_version =
             migrations::revert_latest_migration_in_directory(conn, migrations_dir)?;
         migrations::run_migration_with_version(
@@ -306,10 +306,10 @@ where
         )
     };
     if should_redo_migration_in_transaction(conn) {
-        conn.transaction(migration_inner)
+        conn.transaction_mut(migration_inner)
             .unwrap_or_else(handle_error);
     } else {
-        migration_inner().unwrap_or_else(handle_error);
+        migration_inner(conn).unwrap_or_else(handle_error);
     }
 }
 
