@@ -44,6 +44,10 @@ impl SimpleConnection for PgConnection {
     fn as_pg_connection(&self) -> Option<&PgConnection> {
         Some(self)
     }
+
+    fn as_pg_connection_mut(&mut self) -> Option<&mut PgConnection> {
+        Some(self)
+    }
 }
 
 impl Connection for PgConnection {

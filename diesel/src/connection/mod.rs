@@ -32,6 +32,12 @@ pub trait SimpleConnection {
     fn as_pg_connection(&self) -> Option<&PgConnection> {
         None
     }
+
+    /// Return the underlying `PgConnection` if it is one.
+    #[cfg(feature = "postgres")]
+    fn as_pg_connection_mut(&mut self) -> Option<&mut PgConnection> {
+        None
+    }
 }
 
 /// A connection to a database
